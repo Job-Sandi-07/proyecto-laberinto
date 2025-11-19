@@ -1,80 +1,101 @@
-from __future__ import annotations
-from dataclasses import dataclass
+from typing import Tuple
 
-from src.mapa.mapa import Mapa
-
-
-@dataclass
 class Jugador:
-    x: int
-    y: int
-    energia_maxima: int = 100
-    energia_actual: int = 100
-    costo_correr: int = 10       # energía que gasta por movimiento corriendo
-    regeneracion: int = 3        # energía que recupera por movimiento caminando
-    corriendo: bool = False
+    """
+    Representa al jugador.
 
-    def posicion(self) -> tuple[int, int]:
+    - Tiene energía para correr.
+    - Caminando: 1 casilla por turno.
+    - Corriendo: 2 casillas por turno (más rápido que los enemigos).
+    """
+
+    def __init__(self, x: int, y: int):
+        self.x = x
+        self.y = y
+
+        self.energia_max = 100
+        self.energia = self.energia_max
+
+        self.corriendo: bool = False
+
+        # Velocidades
+        self.velocidad_caminar = 1
+        self.velocidad_correr = 2  # => el jugador será más rápido que los enemigos
+
+        # Costos / recuperación de energía
+        self.costo_correr_por_paso = 8      # energía gastada por cada casilla corriendo
+        self.recuperacion_por_turno = 3     # energía recuperada cuando camina
+
+    # ---------- utilidades ----------
+
+    def posicion(self) -> Tuple[int, int]:
         return self.x, self.y
 
-    def puede_correr(self) -> bool:
-        """Revisa si tiene energía suficiente para correr."""
-        return self.energia_actual >= self.costo_correr
+    def _velocidad_actual(self) -> int:
+        return self.velocidad_correr if self.corriendo else self.velocidad_caminar
+
+    def obtener_barra_energia(self) -> str:
+        longitud_barra = 20
+        ratio = self.energia / self.energia_max
+        llenas = int(longitud_barra * ratio)
+        vacias = longitud_barra - llenas
+
+        estado = "corriendo" if self.corriendo else "caminando"
+        barra = f"[{'#' * llenas}{'.' * vacias}] {self.energia}/{self.energia_max} ({estado})"
+        return barra
+
+    # ---------- control de correr ----------
 
     def iniciar_correr(self) -> bool:
         """
         Intenta activar el modo correr.
-        Devuelve True si lo logró, False si no había energía.
+        Devuelve True si pudo (tenía energía) o False si no.
         """
-        if self.puede_correr():
-            self.corriendo = True
-            return True
-        return False
+        if self.energia <= 0:
+            return False
+        self.corriendo = True
+        return True
 
     def detener_correr(self) -> None:
         self.corriendo = False
 
-    def mover(self, dx: int, dy: int, mapa: Mapa) -> bool:
-        """
-        Intenta mover al jugador en la dirección (dx, dy).
-        Devuelve True si se movió, False si la casilla no era transitable.
-        """
-        nuevo_x = self.x + dx
-        nuevo_y = self.y + dy
+    # ---------- movimiento ----------
 
-        if not mapa.es_transitable_por_jugador(nuevo_x, nuevo_y):
-            # No puede pasar (muro o fuera de mapa)
+    def mover(self, dx: int, dy: int, mapa) -> bool:
+        """
+        Mueve al jugador en la dirección (dx, dy), respetando el mapa.
+        Si está corriendo, intenta avanzar 2 casillas en esa dirección.
+        Devuelve True si se movió al menos una casilla.
+        """
+        if dx == 0 and dy == 0:
             return False
 
-        # Movimiento válido
-        self.x = nuevo_x
-        self.y = nuevo_y
+        pasos = self._velocidad_actual()
+        se_movio = False
 
-        # Actualizamos energía en función de si está corriendo o no
-        self._aplicar_energia_por_movimiento()
-        return True
+        for _ in range(pasos):
+            nuevo_x = self.x + dx
+            nuevo_y = self.y + dy
 
-    def _aplicar_energia_por_movimiento(self) -> None:
-        """Lógica de gasto / recuperación de energía por cada movimiento."""
-        if self.corriendo and self.puede_correr():
-            # Gasta energía por correr
-            self.energia_actual -= self.costo_correr
-            if self.energia_actual < 0:
-                self.energia_actual = 0
-        else:
-            # Regenera energía (caminando o sin energía para correr)
-            self.corriendo = False  # si no puede correr, se apaga el modo
-            self.energia_actual += self.regeneracion
-            if self.energia_actual > self.energia_maxima:
-                self.energia_actual = self.energia_maxima
+            # Verificamos si la casilla es transitable para el jugador
+            if not mapa.es_transitable_por_jugador(nuevo_x, nuevo_y):
+                # Si choca con un muro / casilla no transitable, dejamos de avanzar
+                break
 
-    def obtener_barra_energia(self, longitud: int = 20) -> str:
-        """
-        Devuelve una barra de energía tipo:
-        [##########----------] 50/100
-        """
-        ratio = self.energia_actual / self.energia_maxima
-        llenos = int(ratio * longitud)
-        vacios = longitud - llenos
-        barra = "[" + "#" * llenos + "-" * vacios + "]"
-        return f"{barra} {self.energia_actual}/{self.energia_maxima} ({'CORRIENDO' if self.corriendo else 'caminando'})"
+            # Movimiento válido
+            self.x, self.y = nuevo_x, nuevo_y
+            se_movio = True
+
+            # Si está corriendo, gastar energía por cada paso
+            if self.corriendo:
+                self.energia = max(0, self.energia - self.costo_correr_por_paso)
+                if self.energia == 0:
+                    # Se quedó sin energía: deja de correr
+                    self.corriendo = False
+                    break
+
+        # Recuperar energía cuando se movió caminando (no corriendo)
+        if se_movio and not self.corriendo:
+            self.energia = min(self.energia_max, self.energia + self.recuperacion_por_turno)
+
+        return se_movio

@@ -5,7 +5,10 @@ from .casillas import COD_CAMINO, COD_MURO
 from .mapa import Mapa
 
 
-def generar_matriz_basica(ancho: int, alto: int) -> Tuple[List[List[int]], Tuple[int, int], Tuple[int, int]]:
+def generar_matriz_basica(
+    ancho: int,
+    alto: int,
+) -> Tuple[List[List[int]], Tuple[int, int], Tuple[int, int]]:
     """
     Genera una matriz aleatoria con al menos un camino desde el inicio hasta la salida.
     Por ahora solo usamos CAMINO y MURO.
@@ -25,21 +28,21 @@ def generar_matriz_basica(ancho: int, alto: int) -> Tuple[List[List[int]], Tuple
     while (x, y) != salida:
         opciones = []
         if x < salida[0]:
-            opciones.append((1, 0))
+            opciones.append((1, 0))   # mover derecha
         if y < salida[1]:
-            opciones.append((0, 1))
-        # agregamos algo de aleatoriedad
-        opciones.extend([(0, -1), (-1, 0)])
+            opciones.append((0, 1))   # mover abajo
+        # agregamos algo de aleatoriedad extra
+        opciones.extend([(0, -1), (-1, 0)])  # arriba, izquierda
 
         dx, dy = random.choice(opciones)
         nx, ny = x + dx, y + dy
 
-        # Nos mantenemos dentro de los límites internos
+        # límites internos
         if 1 <= nx < ancho - 1 and 1 <= ny < alto - 1:
             x, y = nx, ny
             matriz[ny][nx] = COD_CAMINO
 
-    # Abrimos algunos caminos extra al azar para que no sea un pasillo feo
+    # Abrimos algunos caminos extra al azar para que no sea un pasillo muy lineal
     cantidad_extra = int(ancho * alto * 0.2)
     for _ in range(cantidad_extra):
         rx = random.randint(1, ancho - 2)

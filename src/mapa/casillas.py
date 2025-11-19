@@ -66,8 +66,7 @@ class Muro(Casilla):
 
 class Tunel(Casilla):
     """
-    Por ahora se comporta como un camino normal.
-    Más adelante le podemos agregar efectos especiales.
+    Túnel: solo el JUGADOR puede pasar; los cazadores NO.
     """
 
     @property
@@ -78,10 +77,16 @@ class Tunel(Casilla):
     def simbolo(self) -> str:
         return "T"
 
+    def es_transitable_por_jugador(self) -> bool:
+        return True
+
+    def es_transitable_por_enemigo(self) -> bool:
+        return False
+
 
 class Liana(Casilla):
     """
-    Igual, de momento solo es un camino especial.
+    Liana: solo los CAZADORES pueden pasar; para el jugador es un obstáculo.
     """
 
     @property
@@ -91,6 +96,12 @@ class Liana(Casilla):
     @property
     def simbolo(self) -> str:
         return "L"
+
+    def es_transitable_por_jugador(self) -> bool:
+        return False
+
+    def es_transitable_por_enemigo(self) -> bool:
+        return True
 
 
 def crear_casilla_desde_codigo(x: int, y: int, codigo: int) -> Casilla:
