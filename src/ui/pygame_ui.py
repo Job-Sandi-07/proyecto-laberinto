@@ -1,11 +1,12 @@
 from typing import List, Tuple
+import random
 
 import pygame
 
 from src.mapa import generar_mapa
 from src.mapa.mapa import Mapa
 from src.mapa.casillas import COD_CAMINO, COD_MURO, COD_TUNEL, COD_LIANA
-from src.entidades import Enemigo, Jugador, MODO_ESCAPA, MODO_CAZADOR
+from src.entidades import Enemigo, Jugador, MODO_ESCAPA, MODO_CAZADOR, Trampa
 
 
 # ----- Configuración visual -----
@@ -22,6 +23,13 @@ COLOR_LIANA = (0, 150, 0)
 COLOR_JUGADOR = (255, 255, 0)
 COLOR_ENEMIGO = (200, 50, 50)
 COLOR_SALIDA = (255, 140, 0)
+COLOR_TRAMPA = (255, 0, 255)  # morado para trampas
+
+
+# ----- Configuración de trampas -----
+MAX_TRAMPAS_ACTIVAS = 3
+COOLDOWN_TRAMPA = 5.0             # segundos entre colocaciones
+RESPAWN_ENEMIGO_TRAMPA = 10.0     # segundos para respawn de enemigos muertos por trampa
 
 
 def _dibujar_mapa(
@@ -29,10 +37,12 @@ def _dibujar_mapa(
     mapa: Mapa,
     pos_jugador: Tuple[int, int],
     posiciones_enemigos: List[Tuple[int, int]],
+    posiciones_trampas: List[Tuple[int, int]],
 ) -> None:
     pantalla.fill(COLOR_FONDO)
 
     enemigos_set = set(posiciones_enemigos)
+    trampas_set = set(posiciones_trampas)
 
     for y in range(mapa.alto):
         for x in range(mapa.ancho):
@@ -57,6 +67,11 @@ def _dibujar_mapa(
     sx, sy = mapa.salida
     rect_salida = pygame.Rect(sx * TAM_CELDA, sy * TAM_CELDA, TAM_CELDA, TAM_CELDA)
     pygame.draw.rect(pantalla, COLOR_SALIDA, rect_salida)
+
+    # Dibujar trampas
+    for tx, ty in trampas_set:
+        rect_trampa = pygame.Rect(tx * TAM_CELDA, ty * TAM_CELDA, TAM_CELDA, TAM_CELDA)
+        pygame.draw.rect(pantalla, COLOR_TRAMPA, rect_trampa)
 
     # Dibujar jugador
     jx, jy = pos_jugador
@@ -85,9 +100,7 @@ def ejecutar_juego(modo: str = MODO_ESCAPA) -> None:
 
     # Crear ventana
     pantalla = pygame.display.set_mode((mapa.ancho * TAM_CELDA, mapa.alto * TAM_CELDA))
-    pygame.display.setCaption = pygame.display.set_caption(
-        f"Laberinto - Modo {modo.upper()}"
-    )
+    pygame.display.set_caption(f"Laberinto - Modo {modo.upper()}")
 
     reloj = pygame.time.Clock()
 
@@ -100,9 +113,16 @@ def ejecutar_juego(modo: str = MODO_ESCAPA) -> None:
     for _ in range(3):
         enemigos.append(Enemigo(sx, sy))
 
+    # Trampas
+    trampas: List[Trampa] = []
+    ultima_trampa = 0.0  # tiempo en segundos
+
     ejecutando = True
 
     while ejecutando:
+        # Tiempo actual en segundos
+        tiempo_actual = pygame.time.get_ticks() / 1000.0
+
         # ----- Manejo de eventos -----
         for evento in pygame.event.get():
             if evento.type == pygame.QUIT:
@@ -111,11 +131,41 @@ def ejecutar_juego(modo: str = MODO_ESCAPA) -> None:
                 if evento.key == pygame.K_ESCAPE:
                     ejecutando = False
                 else:
+                    # Movimiento del jugador
                     _manejar_tecla_movimiento(evento.key, mapa, jugador)
+
+                    # Colocar trampa solo en MODO_ESCAPA
+                    if modo == MODO_ESCAPA and evento.key == pygame.K_t:
+                        if _intentar_colocar_trampa(
+                            jugador,
+                            mapa,
+                            trampas,
+                            tiempo_actual,
+                            ultima_trampa,
+                        ):
+                            ultima_trampa = tiempo_actual
 
         # ----- Actualizar enemigos -----
         for enemigo in enemigos:
             enemigo.actualizar(mapa, jugador.posicion(), modo)
+
+        # ----- Trampas: matar enemigos que las pisen -----
+        trampas_restantes: List[Trampa] = []
+        for trampa in trampas:
+            trampa_ocupo_enemigo = False
+            for enemigo in enemigos:
+                if enemigo.vivo and enemigo.posicion == trampa.posicion():
+                    enemigo.matar(tiempo_actual)
+                    trampa_ocupo_enemigo = True
+            if not trampa_ocupo_enemigo:
+                trampas_restantes.append(trampa)
+        trampas = trampas_restantes
+
+        # ----- Respawn de enemigos muertos por trampas -----
+        for enemigo in enemigos:
+            if enemigo.listo_para_respawn(tiempo_actual, RESPAWN_ENEMIGO_TRAMPA):
+                ex, ey = _buscar_posicion_valida_enemigo(mapa)
+                enemigo.respawnear((ex, ey))
 
         # ----- Comprobar condiciones sencillas de fin -----
         if modo == MODO_ESCAPA and jugador.posicion() == mapa.salida:
@@ -131,7 +181,16 @@ def ejecutar_juego(modo: str = MODO_ESCAPA) -> None:
 
         # ----- Dibujar -----
         posiciones_enemigos = [e.posicion for e in enemigos]
-        _dibujar_mapa(pantalla, mapa, jugador.posicion(), posiciones_enemigos)
+        # OJO: aquí usamos t.posicion() para obtener (x, y)
+        posiciones_trampas = [t.posicion() for t in trampas]
+
+        _dibujar_mapa(
+            pantalla,
+            mapa,
+            jugador.posicion(),
+            posiciones_enemigos,
+            posiciones_trampas,
+        )
         pygame.display.flip()
 
         reloj.tick(FPS)
@@ -155,5 +214,65 @@ def _manejar_tecla_movimiento(tecla: int, mapa: Mapa, jugador: Jugador) -> None:
         dx = 1
 
     if dx != 0 or dy != 0:
-        # Usamos tu método existente de Jugador
         jugador.mover(dx, dy, mapa)
+
+
+def _buscar_posicion_valida_enemigo(mapa: Mapa) -> Tuple[int, int]:
+    """
+    Devuelve una posición válida para respawn de enemigos:
+    - No es muro
+    - Es transitable para enemigo
+    - No es inicio del jugador ni salida
+    """
+    while True:
+        ex = random.randint(0, mapa.ancho - 1)
+        ey = random.randint(0, mapa.alto - 1)
+
+        if (ex, ey) == mapa.inicio_jugador or (ex, ey) == mapa.salida:
+            continue
+
+        if not mapa.es_transitable_por_enemigo(ex, ey):
+            continue
+
+        return ex, ey
+
+
+def _intentar_colocar_trampa(
+    jugador: Jugador,
+    mapa: Mapa,
+    trampas: List[Trampa],
+    tiempo_actual: float,
+    ultima_trampa: float,
+) -> bool:
+    """
+    Intenta colocar una trampa en la posición actual del jugador
+    respetando:
+      - Máximo de trampas activas
+      - Cooldown entre colocaciones
+    Devuelve True si se colocó, False si no.
+    """
+    if len(trampas) >= MAX_TRAMPAS_ACTIVAS:
+        print("Ya tienes el máximo de trampas activas.")
+        return False
+
+    if tiempo_actual - ultima_trampa < COOLDOWN_TRAMPA:
+        restante = COOLDOWN_TRAMPA - (tiempo_actual - ultima_trampa)
+        print(f"Aún no puedes colocar otra trampa. Espera {restante:.1f} s.")
+        return False
+
+    tx, ty = jugador.posicion()
+
+    # No poner trampa donde no puede estar el jugador (por seguridad)
+    if not mapa.es_transitable_por_jugador(tx, ty):
+        print("No puedes colocar una trampa aquí.")
+        return False
+
+    # Evitar duplicar trampa en la misma casilla
+    if any(t.posicion() == (tx, ty) for t in trampas):
+        print("Ya hay una trampa en esta casilla.")
+        return False
+
+    trampa = Trampa(tx, ty, tiempo_colocacion=tiempo_actual)
+    trampas.append(trampa)
+    print("Trampa colocada.")
+    return True

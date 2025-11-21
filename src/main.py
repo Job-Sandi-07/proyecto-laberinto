@@ -7,8 +7,8 @@ from src.entidades import MODO_ESCAPA, MODO_CAZADOR
 def main() -> None:
     while True:
         print("=== LABERINTO – PROYECTO II ===")
-        print("1) Jugar Modo Escapa (interfaz gráfica)")
-        print("2) Jugar Modo Cazador (interfaz gráfica)")
+        print("1) Jugar Modo Escapa")
+        print("2) Jugar Modo Cazador")
         print("Q) Salir")
         opcion = input("Elige una opción: ").strip().lower()
 
@@ -22,7 +22,7 @@ def main() -> None:
         else:
             print("Opción no válida.")
             input("Enter para continuar...")
-            print()  # línea en blanco
+            print()  
 
 
 if __name__ == "__main__":
