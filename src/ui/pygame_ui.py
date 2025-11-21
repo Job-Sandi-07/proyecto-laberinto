@@ -5,6 +5,7 @@ import pygame
 
 from src.mapa import generar_mapa
 from src.mapa.mapa import Mapa
+from src.puntuacion import calcular_puntaje_escapa
 from src.mapa.casillas import COD_CAMINO, COD_MURO, COD_TUNEL, COD_LIANA
 from src.entidades import Enemigo, Jugador, MODO_ESCAPA, MODO_CAZADOR, Trampa
 
@@ -104,6 +105,8 @@ def ejecutar_juego(modo: str = MODO_ESCAPA) -> None:
 
     reloj = pygame.time.Clock()
 
+    tiempo_inicio = pygame.time.get_ticks() / 1000.0
+
     # Crear jugador y enemigos
     jx, jy = mapa.inicio_jugador
     jugador = Jugador(x=jx, y=jy)
@@ -116,11 +119,14 @@ def ejecutar_juego(modo: str = MODO_ESCAPA) -> None:
     # Trampas
     trampas: List[Trampa] = []
     ultima_trampa = 0.0  # tiempo en segundos
+    enemigos_matados_trampa = 0
 
     ejecutando = True
+    frame = 0
 
     while ejecutando:
         # Tiempo actual en segundos
+        frame += 1
         tiempo_actual = pygame.time.get_ticks() / 1000.0
 
         # ----- Manejo de eventos -----
@@ -146,8 +152,14 @@ def ejecutar_juego(modo: str = MODO_ESCAPA) -> None:
                             ultima_trampa = tiempo_actual
 
         # ----- Actualizar enemigos -----
-        for enemigo in enemigos:
-            enemigo.actualizar(mapa, jugador.posicion(), modo)
+               # ----- Actualizar enemigos (más lentos) -----
+        # Solo se mueven cada 3 frames (puedes ajustar)
+        MOVER_CADA = 3
+
+        if frame % MOVER_CADA == 0:
+            for enemigo in enemigos:
+                enemigo.actualizar(mapa, jugador.posicion(), modo)
+
 
         # ----- Trampas: matar enemigos que las pisen -----
         trampas_restantes: List[Trampa] = []
@@ -156,6 +168,7 @@ def ejecutar_juego(modo: str = MODO_ESCAPA) -> None:
             for enemigo in enemigos:
                 if enemigo.vivo and enemigo.posicion == trampa.posicion():
                     enemigo.matar(tiempo_actual)
+                    enemigos_matados_trampa += 1
                     trampa_ocupo_enemigo = True
             if not trampa_ocupo_enemigo:
                 trampas_restantes.append(trampa)
@@ -169,8 +182,22 @@ def ejecutar_juego(modo: str = MODO_ESCAPA) -> None:
 
         # ----- Comprobar condiciones sencillas de fin -----
         if modo == MODO_ESCAPA and jugador.posicion() == mapa.salida:
-            print("¡Has escapado del laberinto!")
-            ejecutando = False
+                 tiempo_fin = tiempo_actual
+                 duracion = tiempo_fin - tiempo_inicio
+
+                 puntaje = calcular_puntaje_escapa(
+                    duracion_segundos=duracion,
+                    num_enemigos=len(enemigos),
+                    factor_dificultad=1.0,        # luego lo ligamos a niveles
+                    enemigos_eliminados_trampa=enemigos_matados_trampa,
+                    )    
+
+                 print("¡Has escapado del laberinto!")
+                 print(f"Tiempo: {duracion:.1f} s")
+                 print(f"Enemigos muertos por trampa: {enemigos_matados_trampa}")
+                 print(f"Puntaje total (modo Escapa): {puntaje}")
+                 ejecutando = False
+
 
         if any(enemigo.posicion == jugador.posicion() for enemigo in enemigos):
             if modo == MODO_ESCAPA:

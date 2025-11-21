@@ -1,28 +1,29 @@
 # src/puntuacion.py
 
-PUNTOS_BASE_ESCAPA = 1000
-PENALIZACION_POR_SEGUNDO = 5
-BONO_POR_ENEMIGO = 50  # aumenta la recompensa por tener más enemigos / más difíciles
-
-PUNTOS_ENEMIGO_ESCAPADO = -50
-PUNTOS_ENEMIGO_ATRAPADO = 100  # el doble de lo que perderías si escapara
+PUNTOS_BASE_ESCAPA = 1000.0
+BONO_POR_TRAMPA = 15          # bono por enemigo eliminado con trampa
+PUNTOS_ENEMIGO_ESCAPADO = 50  # en modo cazador
 
 
 def calcular_puntaje_escapa(
     duracion_segundos: float,
     num_enemigos: int,
-    factor_dificultad: float = 1.0,
+    factor_dificultad: float,
+    enemigos_eliminados_trampa: int = 0,
 ) -> int:
     """
-    Puntaje para modo Escapa:
-    - Menos tiempo → más puntos.
-    - Más enemigos / más dificultad → más puntos.
+    Menor tiempo -> más puntos.
+    Más enemigos / más dificultad -> más puntos.
+    Cada enemigo eliminado con trampa da un bono fijo.
     """
-    penalizacion_tiempo = int(duracion_segundos * PENALIZACION_POR_SEGUNDO)
-    bono_enemigos = int(num_enemigos * BONO_POR_ENEMIGO * factor_dificultad)
+    if duracion_segundos <= 0:
+        duracion_segundos = 0.1
 
-    puntaje = PUNTOS_BASE_ESCAPA - penalizacion_tiempo + bono_enemigos
-    return max(0, puntaje)
+    dificultad_total = max(1.0, num_enemigos * factor_dificultad)
+    base = PUNTOS_BASE_ESCAPA * dificultad_total / duracion_segundos
+    bono_trampas = enemigos_eliminados_trampa * BONO_POR_TRAMPA
+
+    return int(round(base + bono_trampas))
 
 
 def calcular_puntaje_cazador(
@@ -30,11 +31,8 @@ def calcular_puntaje_cazador(
     enemigos_escapados: int,
 ) -> int:
     """
-    Puntaje para modo Cazador:
-    - Cada enemigo atrapado suma.
-    - Cada enemigo que llega a la salida resta.
+    Si un enemigo escapa pierdes X puntos.
+    Si lo atrapas antes de que escape, ganas el doble de X.
     """
-    return (
-        enemigos_atrapados * PUNTOS_ENEMIGO_ATRAPADO
-        + enemigos_escapados * PUNTOS_ENEMIGO_ESCAPADO
-    )
+    return (2 * PUNTOS_ENEMIGO_ESCAPADO * enemigos_atrapados
+            - PUNTOS_ENEMIGO_ESCAPADO * enemigos_escapados)
