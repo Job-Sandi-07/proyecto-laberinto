@@ -1,28 +1,8 @@
+# src/main.py
 import sys
 
-from src.ui import ejecutar_juego, pedir_nombre
+from src.ui import ejecutar_juego, pedir_nombre, mostrar_menu
 from src.entidades import MODO_ESCAPA, MODO_CAZADOR
-from src.puntuacion import obtener_top5
-
-
-def mostrar_puntajes() -> None:
-    print("=== TOP 5 - MODO ESCAPA ===")
-    top_escapa = obtener_top5(MODO_ESCAPA)
-    if not top_escapa:
-        print("Sin registros aún.")
-    else:
-        for i, entrada in enumerate(top_escapa, start=1):
-            print(f"{i}. {entrada['nombre']} - {entrada['puntaje']}")
-
-    print("\n=== TOP 5 - MODO CAZADOR ===")
-    top_cazador = obtener_top5(MODO_CAZADOR)
-    if not top_cazador:
-        print("Sin registros aún.")
-    else:
-        for i, entrada in enumerate(top_cazador, start=1):
-            print(f"{i}. {entrada['nombre']} - {entrada['puntaje']}")
-
-    input("\nEnter para volver al menú...")
 
 
 def main() -> None:
@@ -30,28 +10,20 @@ def main() -> None:
     nombre = pedir_nombre()
 
     while True:
-        print("=== LABERINTO – PROYECTO II ===")
-        print(f"Jugador actual: {nombre}")
-        print("1) Jugar Modo Escapa")
-        print("2) Jugar Modo Cazador")
-        print("3) Ver puntajes")
-        print("Q) Salir")
-        opcion = input("Elige una opción: ").strip().lower()
+        # Menú gráfico: devuelve qué hacer y cuántos enemigos
+        accion, num_enemigos = mostrar_menu(nombre)
 
-        if opcion == "1":
-            ejecutar_juego(MODO_ESCAPA, nombre)
-        elif opcion == "2":
-            ejecutar_juego(MODO_CAZADOR, nombre)
-        elif opcion == "3":
-            mostrar_puntajes()
-        elif opcion == "q":
+        if accion == "salir" or num_enemigos is None:
             print("¡Hasta luego!")
             sys.exit(0)
-        else:
-            print("Opción no válida.")
-            input("Enter para continuar...")
-            print()
+
+        if accion == "escapa":
+            ejecutar_juego(MODO_ESCAPA, nombre, num_enemigos)
+        elif accion == "cazador":
+            ejecutar_juego(MODO_CAZADOR, nombre, num_enemigos)
+        # tras terminar una partida, el bucle vuelve a mostrar el menú gráfico
 
 
 if __name__ == "__main__":
     main()
+

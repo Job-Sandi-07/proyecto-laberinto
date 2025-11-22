@@ -1,5 +1,5 @@
 import pygame
-
+import sys
 
 ANCHO_VENTANA = 600
 ALTO_VENTANA = 200
@@ -9,7 +9,6 @@ COLOR_CAJA = (50, 50, 50)
 
 
 def pedir_nombre() -> str:
-    
     pygame.init()
     pantalla = pygame.display.set_mode((ANCHO_VENTANA, ALTO_VENTANA))
     pygame.display.set_caption("Registro de jugador")
@@ -23,28 +22,26 @@ def pedir_nombre() -> str:
     while not terminado:
         for evento in pygame.event.get():
             if evento.type == pygame.QUIT:
-                terminado = True
+                pygame.quit()
+                sys.exit(0)   # cerrar TODO
+
             elif evento.type == pygame.KEYDOWN:
                 if evento.key == pygame.K_RETURN:
-                  
                     if nombre.strip():
                         terminado = True
-                    else:
-                       
-                        pass
                 elif evento.key == pygame.K_BACKSPACE:
                     nombre = nombre[:-1]
                 else:
-                    # Agregar carácter
                     nombre += evento.unicode
 
         # Dibujar
         pantalla.fill(COLOR_FONDO)
 
-        texto_titulo = fuente.render("Escribe tu nombre y presiona ENTER", True, COLOR_TEXTO)
+        texto_titulo = fuente.render(
+            "Escribe tu nombre y presiona ENTER", True, COLOR_TEXTO
+        )
         pantalla.blit(texto_titulo, (20, 40))
 
-        # Caja
         caja_rect = pygame.Rect(20, 90, ANCHO_VENTANA - 40, 40)
         pygame.draw.rect(pantalla, COLOR_CAJA, caja_rect)
 
