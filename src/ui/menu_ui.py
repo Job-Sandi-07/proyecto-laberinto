@@ -6,6 +6,7 @@ import sys
 
 from src.entidades import MODO_ESCAPA, MODO_CAZADOR
 from src.puntuacion import obtener_top5
+from src.musica.musica import iniciar_musica, detener_musica
 
 ANCHO_VENTANA = 800
 ALTO_VENTANA = 600
@@ -17,19 +18,14 @@ COLOR_TITULO = (255, 255, 255)
 
 
 def mostrar_menu(nombre_jugador: str) -> Tuple[str, Optional[int]]:
-    """
-    Muestra el menú principal en Pygame.
-
-    Devuelve:
-      ("escapa", num_enemigos)   -> jugar modo escapa
-      ("cazador", num_enemigos)  -> jugar modo cazador
-      ("salir", None)            -> cerrar juego
-
-    Si el usuario cierra la ventana, se termina toda la aplicación.
-    """
+   
     pygame.init()
     pantalla = pygame.display.set_mode((ANCHO_VENTANA, ALTO_VENTANA))
     pygame.display.set_caption("Menú principal - Laberinto")
+
+    # Iniciar música de fondo (loop) si es posible
+    iniciar_musica(loop=True, volumen=0.4)
+    volumen = pygame.mixer.music.get_volume() if pygame.mixer.get_init() else 0.4
 
     fuente_titulo = pygame.font.SysFont(None, 36)
     fuente_opcion = pygame.font.SysFont(None, 28)
@@ -46,42 +42,58 @@ def mostrar_menu(nombre_jugador: str) -> Tuple[str, Optional[int]]:
     ejecutando = True
     while ejecutando:
         for evento in pygame.event.get():
-            if evento.type == pygame.QUIT:
+         if evento.type == pygame.QUIT:
+                detener_musica()
                 pygame.quit()
                 sys.exit(0)
 
-            if evento.type == pygame.KEYDOWN:
-                if evento.key in (pygame.K_UP, pygame.K_w):
-                    indice_seleccionado = (indice_seleccionado - 1) % len(opciones)
-                elif evento.key in (pygame.K_DOWN, pygame.K_s):
-                    indice_seleccionado = (indice_seleccionado + 1) % len(opciones)
-                elif evento.key in (pygame.K_RETURN, pygame.K_KP_ENTER):
-                    _, accion = opciones[indice_seleccionado]
+         if evento.type == pygame.KEYDOWN:
+            
+            if evento.key in (pygame.K_UP, pygame.K_w):
+                indice_seleccionado = (indice_seleccionado - 1) % len(opciones)
 
-                    if accion == "escapa":
-                        num = _pantalla_configurar_enemigos(
-                            pantalla, fuente_titulo, fuente_opcion, "Modo Escapa"
-                        )
-                        if num is not None:
-                            pygame.quit()
-                            return "escapa", num
+            elif evento.key in (pygame.K_DOWN, pygame.K_s):
+                indice_seleccionado = (indice_seleccionado + 1) % len(opciones)
 
-                    elif accion == "cazador":
-                        num = _pantalla_configurar_enemigos(
-                            pantalla, fuente_titulo, fuente_opcion, "Modo Cazador"
-                        )
-                        if num is not None:
-                            pygame.quit()
-                            return "cazador", num
+            elif evento.key in (pygame.K_LEFT, pygame.K_a):
+                volumen = max(0.0, volumen - 0.1)
+                if pygame.mixer.get_init():
+                    pygame.mixer.music.set_volume(volumen)
 
-                    elif accion == "puntajes":
-                        _pantalla_puntajes(
-                            pantalla, fuente_titulo, fuente_opcion, nombre_jugador
-                        )
+            elif evento.key in (pygame.K_RIGHT, pygame.K_d):
+                volumen = min(1.0, volumen + 0.1)
+                if pygame.mixer.get_init():
+                    pygame.mixer.music.set_volume(volumen)
 
-                    elif accion == "salir":
+            # ENTER para activar la opción seleccionada
+            elif evento.key in (pygame.K_RETURN, pygame.K_KP_ENTER):
+                _, accion = opciones[indice_seleccionado]
+
+                if accion == "escapa":
+                    num = _pantalla_configurar_enemigos(
+                        pantalla, fuente_titulo, fuente_opcion, "Modo Escapa"
+                    )
+                    if num is not None:
                         pygame.quit()
-                        return "salir", None
+                        return "escapa", num
+
+                elif accion == "cazador":
+                    num = _pantalla_configurar_enemigos(
+                        pantalla, fuente_titulo, fuente_opcion, "Modo Cazador"
+                    )
+                    if num is not None:
+                        pygame.quit()
+                        return "cazador", num
+
+                elif accion == "puntajes":
+                    _pantalla_puntajes(
+                        pantalla, fuente_titulo, fuente_opcion, nombre_jugador
+                    )
+
+                elif accion == "salir":
+                    detener_musica()
+                    pygame.quit()
+                    return "salir", None
 
         # Dibujar menú
         pantalla.fill(COLOR_FONDO)
@@ -112,7 +124,7 @@ def mostrar_menu(nombre_jugador: str) -> Tuple[str, Optional[int]]:
             )
 
         ayuda = fuente_opcion.render(
-            "Flechas o W/S para moverse, ENTER para seleccionar",
+            "W/S para moverse, ENTER para seleccionar",
             True,
             COLOR_TEXTO,
         )
@@ -120,10 +132,21 @@ def mostrar_menu(nombre_jugador: str) -> Tuple[str, Optional[int]]:
             ayuda,
             (ANCHO_VENTANA // 2 - ayuda.get_width() // 2, ALTO_VENTANA - 60),
         )
+        texto_vol = fuente_opcion.render(
+            f"Volumen música: {int(volumen * 100)}%  (derecha o izquierda para ajustar)",
+            True,
+            COLOR_TEXTO,
+        )
+        
+        pantalla.blit(
+            texto_vol,
+            (ANCHO_VENTANA // 2 - texto_vol.get_width() // 2, ALTO_VENTANA - 30),
+        )
 
         pygame.display.flip()
         reloj.tick(60)
 
+    detener_musica()
     pygame.quit()
     return "salir", None
 
@@ -134,10 +157,7 @@ def _pantalla_configurar_enemigos(
     fuente_texto: pygame.font.Font,
     titulo_modo: str,
 ) -> Optional[int]:
-    """
-    Pantalla para elegir la cantidad de enemigos (1 a 10).
-    Flechas (o A / D) para cambiar, ENTER para aceptar, ESC para cancelar.
-    """
+   
     reloj = pygame.time.Clock()
     num_enemigos = 3
     ejecutando = True
@@ -145,6 +165,7 @@ def _pantalla_configurar_enemigos(
     while ejecutando:
         for evento in pygame.event.get():
             if evento.type == pygame.QUIT:
+                detener_musica()
                 pygame.quit()
                 sys.exit(0)
             if evento.type == pygame.KEYDOWN:
@@ -178,7 +199,7 @@ def _pantalla_configurar_enemigos(
         )
 
         ayuda = fuente_texto.render(
-            "Usa Flechas o A / D para cambiar, ENTER para aceptar, ESC para volver",
+            "A / D para cambiar, ENTER para aceptar, ESC para volver",
             True,
             COLOR_TEXTO,
         )
@@ -199,11 +220,7 @@ def _pantalla_puntajes(
     fuente_texto: pygame.font.Font,
     nombre_jugador: str,
 ) -> None:
-    """
-    Pantalla que muestra el Top 5 de Escapa y Cazador.
-    ENTER o ESC para volver al menú.
-    Si se cierra la ventana, se cierra todo el programa.
-    """
+   
     reloj = pygame.time.Clock()
 
     top_escapa = obtener_top5(MODO_ESCAPA)
@@ -213,6 +230,7 @@ def _pantalla_puntajes(
     while ejecutando:
         for evento in pygame.event.get():
             if evento.type == pygame.QUIT:
+                detener_musica()
                 pygame.quit()
                 sys.exit(0)
             if evento.type == pygame.KEYDOWN:

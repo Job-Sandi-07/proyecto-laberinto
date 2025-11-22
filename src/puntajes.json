@@ -2,6 +2,14 @@
   "escapa": [
     {
       "nombre": "Job",
+      "puntaje": 649
+    },
+    {
+      "nombre": "Job",
+      "puntaje": 574
+    },
+    {
+      "nombre": "Job",
       "puntaje": 376
     },
     {
@@ -13,5 +21,10 @@
       "puntaje": 209
     }
   ],
-  "cazador": []
+  "cazador": [
+    {
+      "nombre": "Job",
+      "puntaje": 300
+    }
+  ]
 }

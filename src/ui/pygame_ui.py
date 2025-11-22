@@ -13,6 +13,7 @@ from src.puntuacion import (
     calcular_puntaje_cazador,
     registrar_puntaje,
 )
+from src.musica.musica import iniciar_musica, detener_musica
 
 # ------------------ Configuración visual ------------------
 
@@ -117,7 +118,7 @@ def _dibujar_mapa(
 
 
 # ----------------------------------------------------------
-# Lógica principal del juego (con HUD, correr, vidas y puntajes)
+# Lógica principal del juego
 # ----------------------------------------------------------
 def ejecutar_juego(
     modo: str = MODO_ESCAPA,
@@ -127,7 +128,7 @@ def ejecutar_juego(
     
     pygame.init()
 
-    # Dimensiones fijas del mapa (coinciden con generar_mapa)
+    # Dimensiones fijas del mapa
     ancho, alto = 20, 15
 
     # Ventana: alto del mapa + banda HUD arriba
@@ -135,6 +136,7 @@ def ejecutar_juego(
     alto_px = ALTURA_HUD + alto * TAM_CELDA
     pantalla = pygame.display.set_mode((ancho_px, alto_px))
     pygame.display.set_caption(f"Laberinto - Modo {modo.upper()}")
+    iniciar_musica(loop=True, volumen=0.4)
 
     reloj = pygame.time.Clock()
     fuente_hud = pygame.font.SysFont(None, 24)
@@ -188,6 +190,7 @@ def ejecutar_juego(
     while en_previa:
         for evento in pygame.event.get():
             if evento.type == pygame.QUIT:
+                detener_musica()
                 pygame.quit()
                 sys.exit(0)
             elif evento.type == pygame.KEYDOWN:
