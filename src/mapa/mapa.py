@@ -4,9 +4,7 @@ from .casillas import Casilla, crear_casilla_desde_codigo
 
 
 class Mapa:
-    """
-    Envuelve la matriz de casillas y provee métodos de utilidad.
-    """
+  
 
     def __init__(
         self,
@@ -42,32 +40,23 @@ class Mapa:
     # ---------- utilidades básicas ----------
 
     def dentro_limites(self, x: int, y: int) -> bool:
-        """
-        Devuelve True si (x, y) está dentro del mapa.
-        """
+        
         return 0 <= x < self.ancho and 0 <= y < self.alto
 
     def obtener_casilla(self, x: int, y: int) -> Casilla:
-        """
-        Devuelve el objeto Casilla en la coordenada (x, y).
-        Lanza IndexError si está fuera de límites.
-        """
+       
         if not self.dentro_limites(x, y):
             raise IndexError(f"Posición fuera de límites: ({x}, {y})")
         return self.casillas[y][x]
 
     def es_transitable_por_jugador(self, x: int, y: int) -> bool:
-        """
-        Indica si el jugador puede entrar en la casilla (x, y).
-        """
+        
         if not self.dentro_limites(x, y):
             return False
         return self.obtener_casilla(x, y).es_transitable_por_jugador()
 
     def es_transitable_por_enemigo(self, x: int, y: int) -> bool:
-        """
-        Indica si un enemigo puede entrar en la casilla (x, y).
-        """
+        
         if not self.dentro_limites(x, y):
             return False
         return self.obtener_casilla(x, y).es_transitable_por_enemigo()
@@ -79,10 +68,7 @@ class Mapa:
         pos_jugador: Optional[Tuple[int, int]] = None,
         posiciones_enemigos: Optional[Iterable[Tuple[int, int]]] = None,
     ) -> None:
-        """
-        Muestra el mapa en texto. Muy útil para debug.
-        J = jugador, E = enemigo, S = salida.
-        """
+        
         posiciones_enemigos = posiciones_enemigos or []
         enemigos_set = set(posiciones_enemigos)
 
